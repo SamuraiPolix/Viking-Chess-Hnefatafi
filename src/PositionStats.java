@@ -22,4 +22,11 @@ public class PositionStats {
         System.out.println(pos + "" + getNumberOfVisits() + " pieces");
     }
 
+    public int getPosRow() {
+        return this.pos.getRow();
+    }
+    public int getPosCol() {
+        return this.pos.getCol();
+    }
+
 }

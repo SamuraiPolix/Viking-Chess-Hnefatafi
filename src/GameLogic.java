@@ -55,8 +55,8 @@ public class GameLogic implements PlayableLogic{
         int countAttacker = 1,
                 countDefender = 1;
         String id;
-        for (int i = 0; i < this.boardTypes.length; i++){
-            for (int j = 0; j < this.boardTypes[0].length; j++){
+        for (int j = 0; j < this.boardTypes.length; j++){
+            for (int i = 0; i < this.boardTypes[0].length; i++){
                 Position currPos = new Position(i, j);
                 switch (boardTypes[i][j]) {
                     case 0:
@@ -100,7 +100,7 @@ public class GameLogic implements PlayableLogic{
     @Override
     public boolean move(Position a, Position b) {
         // Check all "bad" options
-        if (!arePiecesAvailable(a, b) || isMoveDiagonal(a, b) || !isPathClear(a ,b))
+        if (!arePiecesAvailable(a, b) || isMoveDiagonal(a, b) || !isPathClear(a ,b) || pawnToCorner(a, b))
             return false;
         // else
         // king
@@ -114,6 +114,10 @@ public class GameLogic implements PlayableLogic{
             eatPiece(getPieceAtPosition(b), b);
         }
         return true;
+    }
+
+    private boolean pawnToCorner(Position a, Position b) {
+        return b.isCorner() && getPieceAtPosition(a).getClass().equals(Pawn.class);
     }
 
     private boolean isMoveDiagonal(Position a, Position b) {
@@ -195,10 +199,10 @@ public class GameLogic implements PlayableLogic{
         if (left != null && (j - 1) >= 0 && left.getOwner() != piece.getOwner()){
             if (!left.getType().equals("♔")) {
                 // he is cornered to the left, so eat him
-                if (j - 2 == -1) {
+                if (j - 2 == -1 || leftPos.getLeft().isCorner()) {
                     this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
                     this.boardPieces[i][j-1] = null;
-                } else if (this.boardPieces[i][j-2] != null && this.boardPieces[i][j-2].getOwner() == piece.getOwner()) {
+                } else if (this.boardPieces[i][j-2] != null && !this.boardPieces[i][j-2].getClass().equals(King.class) && this.boardPieces[i][j-2].getOwner() == piece.getOwner()) {
                     this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
                     this.boardPieces[i][j-1] = null;
                 }
@@ -213,10 +217,10 @@ public class GameLogic implements PlayableLogic{
         if (right != null && (j + 1) <= 10 && right.getOwner() != piece.getOwner()){
             if (!right.getType().equals("♔")) {
                 // he is cornered to the right, so eat him
-                if (j + 2 == BOARD_SIZE) {
+                if (j + 2 == BOARD_SIZE || rightPos.getRight().isCorner()) {
                     this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
                     this.boardPieces[i][j+1] = null;
-                } else if (this.boardPieces[i][j+2] != null && this.boardPieces[i][j+2].getOwner() == piece.getOwner()) {
+                } else if (this.boardPieces[i][j+2] != null && !this.boardPieces[i][j+2].getClass().equals(King.class) && this.boardPieces[i][j+2].getOwner() == piece.getOwner()) {
                     this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
                     this.boardPieces[i][j+1] = null;
                 }
@@ -231,10 +235,10 @@ public class GameLogic implements PlayableLogic{
         if (up != null && (i + 1) <= 10 && up.getOwner() != piece.getOwner()){
             if (!up.getType().equals("♔")) {
                 // he is cornered above, so eat him
-                if (i + 2 == BOARD_SIZE) {
+                if (i + 2 == BOARD_SIZE || upPos.getUp().isCorner()) {
                     this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
                     this.boardPieces[i+1][j] = null;
-                } else if (this.boardPieces[i+2][j] != null && this.boardPieces[i+2][j].getOwner() == piece.getOwner()) {
+                } else if (this.boardPieces[i+2][j] != null && !this.boardPieces[i+2][j].getClass().equals(King.class) && this.boardPieces[i+2][j].getOwner() == piece.getOwner()) {
                     this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
                     this.boardPieces[i+1][j] = null;
                 }
@@ -249,10 +253,10 @@ public class GameLogic implements PlayableLogic{
         if (down != null && (i - 1) >= 0 && down.getOwner() != piece.getOwner()){
             if (!down.getType().equals("♔")) {
                 // he is cornered below, so eat him
-                if (i - 2 == -1) {
+                if (i - 2 == -1  || downPos.getDown().isCorner()) {
                     this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
                     this.boardPieces[i-1][j] = null;
-                } else if (this.boardPieces[i-2][j] != null && this.boardPieces[i-2][j].getOwner() == piece.getOwner()) {
+                } else if (this.boardPieces[i-2][j] != null && !this.boardPieces[i-2][j].getClass().equals(King.class) && this.boardPieces[i-2][j].getOwner() == piece.getOwner()) {
                     this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
                     this.boardPieces[i-1][j] = null;
                 }

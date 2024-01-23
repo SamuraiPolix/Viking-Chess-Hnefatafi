@@ -39,11 +39,11 @@ public class Position {
     }
 
     public Position getUp() {
-        return new Position(row-1, col);
+        return new Position(row+1, col);
     }
 
     public Position getDown() {
-        return new Position(row+1, col);
+        return new Position(row-1, col);
     }
 
     public boolean isValid(int boardSize){

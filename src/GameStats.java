@@ -41,8 +41,32 @@ public class GameStats {
 
     Comparator<PieceStats> compareByKills = Comparator.comparing(PieceStats::getKills);
     Comparator<PieceStats> compareByMoves = Comparator.comparing(PieceStats::getNumberOfMoves);
+
+    // Compare by Squares
     Comparator<PieceStats> compareBySteps = Comparator.comparing(PieceStats::getTravelLength);
+
+    Comparator<PieceStats> compareByIdNum = new CompareByIdNum();
+
+    public static class CompareByIdNum implements Comparator<PieceStats> {
+        public int compare(PieceStats ps1, PieceStats ps2) {
+            if (Integer.parseInt(ps1.getId().substring(1)) < Integer.parseInt(ps2.getId().substring(1)))
+                return -1;
+            else if (Integer.parseInt(ps1.getId().substring(1)) > Integer.parseInt(ps2.getId().substring(1)))
+                return 1;
+            else
+                return 0;
+        }
+    }
+
+
+
+    // Compare by Position visits
+
     Comparator<PositionStats> compareByVisits = Comparator.comparing(PositionStats::getNumberOfVisits);
+    Comparator<PositionStats> compareByRow = Comparator.comparing(PositionStats::getPosRow);
+    Comparator<PositionStats> compareByCol = Comparator.comparing(PositionStats::getPosCol);
+
+
 
     public void printMoves(){
         ArrayList<PieceStats> winnerArr = attackersList,
@@ -78,7 +102,8 @@ public class GameStats {
     }
 
     private void printKills (ArrayList<PieceStats> arr){
-        arr.sort(compareByMoves);
+        arr.sort(compareByIdNum);
+        arr.sort(compareByKills.reversed());
         for (PieceStats pieceStats : arr) {
             if (pieceStats.getKills() > 0)
                 pieceStats.printKills();
@@ -100,19 +125,24 @@ public class GameStats {
     }
 
     private void printSteps (ArrayList<PieceStats> arr){
-        arr.sort(compareBySteps);
-        for (int i = arr.size() - 1; i >= 0; i--) {
-            if (arr.get(i).getTravelLength() > 0)
-                arr.get(i).printSteps();
+        arr.sort(compareByIdNum);
+        arr.sort(compareBySteps.reversed());
+        for (PieceStats pieceStats : arr) {
+            if (pieceStats.getTravelLength() > 0)
+                pieceStats.printSteps();
         }
     }
 
     public void printPositionVisits() {
-        positionsList.sort(compareByVisits);
-        for (int i = positionsList.size() - 1; i >= 0; i--) {
-            if (positionsList.get(i).getNumberOfVisits() >= 2)
-                positionsList.get(i).printVisits();
+        positionsList.sort(compareByCol);
+        positionsList.sort(compareByRow);
+        positionsList.sort(compareByVisits.reversed());
+        for (PositionStats positionStats : positionsList) {
+            if (positionStats.getNumberOfVisits() >= 2)
+                positionStats.printVisits();
         }
+
+
     }
 
 
