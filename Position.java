@@ -1,10 +1,14 @@
+import java.util.ArrayList;
+
 public class Position {
+    private ArrayList<ConcretePiece> visitedPieces;
     private int row;
     private int col;
 
     public Position(int row, int col) {
         this.row = row;
         this.col = col;
+        visitedPieces = new ArrayList<>();
     }
 
     public boolean isCorner() {
@@ -22,12 +26,23 @@ public class Position {
         return this.col;
     }
 
-    public void setRow(int row) {
-        this.row = row;
+    // adds a piece that visited the position to a list, only if the piece doesn't already exist in the list
+    public void addVisit(ConcretePiece piece) {
+        if (piece != null && !visitedPieces.contains(piece))
+            visitedPieces.add(piece);
     }
 
-    public void setCol(int col) {
-        this.col = col;
+    // gets the last piece that was on this position
+    public ConcretePiece getLastVisit() {
+        return this.visitedPieces.get(visitedPieces.size() - 1);
+    }
+
+    public void removeVisit() {
+        this.visitedPieces.remove(visitedPieces.size()-1);
+    }
+
+    public int getNumberOfVisits() {
+        return this.visitedPieces.size();
     }
 
     public Position getLeft() {
@@ -46,16 +61,21 @@ public class Position {
         return new Position(row-1, col);
     }
 
+    // checks if position exceeds the border
     public boolean isValid(int boardSize){
         return row < boardSize && col < boardSize && row >= 0 && col >= 0;
     }
 
-    // Returns the length from 'this' to dest
-    public int getLengthFrom(Position dest) {
+    // Returns the distance from 'this' to dest
+    public int getDistanceFrom(Position dest) {
         return Math.abs(this.row - dest.getRow()) + Math.abs(this.col - dest.getCol());
     }
 
     public String toString() {
         return "(" + this.row + ", " + this.col + ")";
+    }
+
+    public void printVisits() {
+        System.out.println(this + "" + getNumberOfVisits() + " pieces");
     }
 }

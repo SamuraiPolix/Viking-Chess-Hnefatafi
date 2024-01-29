@@ -1,27 +1,23 @@
+import java.util.ArrayList;
+import java.util.Stack;
+
 public class GameLogic implements PlayableLogic{
 
+    private GameStats gameStats;            // controls the stats of the game at the end
+    private ConcretePlayer player1, player2;    // 2 players
+    private ConcretePiece[][] boardPieces;      // saves all the pieces and their stats
+    private Position[][] positions;         // saves all the positions and their stats
+    private Stack<Move> moves;          // stores info about each move to be able to 'undo' move
+
+    // Constants
     private final int BOARD_SIZE = 11;
     private final Position CORNER1 = new Position(0 ,0);
     private final Position CORNER2 = new Position(BOARD_SIZE-1 ,BOARD_SIZE-1);
     private final Position CORNER3 = new Position(0 ,BOARD_SIZE-1);
     private final Position CORNER4 = new Position(BOARD_SIZE-1 ,0);
 
-    private GameStats gameStats;
-
-    private ConcretePlayer player1, player2;
-
     private boolean isSecondPlayerTurn;
-
     private boolean isGameFinished;
-
-    private ConcretePiece[][] boardPieces;
-
-    private PieceStats[][] pieceStats;
-
-    private PositionStats[][] positionStats;
-
-    private GameState gameState;
-
 
     // 0 - null, 1 - black pawn, 2 - white pawn, 3 - white king
     private Integer[][] boardTypes = {
@@ -43,10 +39,9 @@ public class GameLogic implements PlayableLogic{
         this.player2 = new ConcretePlayer(false);
         this.isSecondPlayerTurn = true;     // 2nd player starts
         this.boardPieces = new ConcretePiece[BOARD_SIZE][BOARD_SIZE];
-        this.pieceStats = new PieceStats[BOARD_SIZE][BOARD_SIZE];
-        this.positionStats = new PositionStats[BOARD_SIZE][BOARD_SIZE];
+        this.positions = new Position[BOARD_SIZE][BOARD_SIZE];
         this.gameStats = new GameStats();
-        this.gameState = new GameState();
+        this.moves = new Stack<>();
         initBoardPieces();
     }
 
@@ -61,71 +56,80 @@ public class GameLogic implements PlayableLogic{
                 switch (boardTypes[i][j]) {
                     case 0:
                         boardPieces[i][j] = null;
-                        pieceStats[i][j] = null;
-                        positionStats[i][j] = new PositionStats(currPos);
+                        positions[i][j] = currPos;
                         break;
                     case 1:
                         id = "A" + countAttacker;
-                        boardPieces[i][j] = new Pawn(player2);
-                        pieceStats[i][j] = new PieceStats(boardPieces[i][j], id, currPos);
-                        gameStats.addPieceStats(player2, pieceStats[i][j]);
-                        positionStats[i][j] = new PositionStats(currPos);
-                        positionStats[i][j].addVisit(boardPieces[i][j]);
+                        boardPieces[i][j] = new Pawn(player2, id);
+                        boardPieces[i][j].addMove(currPos);
+                        gameStats.addPieceStats(player2, boardPieces[i][j]);
+                        positions[i][j] = currPos;
+                        positions[i][j].addVisit(boardPieces[i][j]);
                         countAttacker++;
                         break;
                     case 2:
                         id = "D" + countDefender;
-                        boardPieces[i][j] = new Pawn(player1);
-                        pieceStats[i][j] = new PieceStats(boardPieces[i][j], id, currPos);
-                        gameStats.addPieceStats(player1, pieceStats[i][j]);
-                        positionStats[i][j] = new PositionStats(currPos);
-                        positionStats[i][j].addVisit(boardPieces[i][j]);
+                        boardPieces[i][j] = new Pawn(player1, id);
+                        boardPieces[i][j].addMove(currPos);
+                        gameStats.addPieceStats(player1, boardPieces[i][j]);
+                        positions[i][j] = currPos;
+                        positions[i][j].addVisit(boardPieces[i][j]);
                         countDefender++;
                         break;
                     case 3:
                         id = "K" + countDefender;
-                        boardPieces[i][j] = new King(player1);
-                        pieceStats[i][j] = new PieceStats(boardPieces[i][j], id, currPos);
-                        gameStats.addPieceStats(player1, pieceStats[i][j]);
-                        positionStats[i][j] = new PositionStats(currPos);
-                        positionStats[i][j].addVisit(boardPieces[i][j]);
+                        boardPieces[i][j] = new King(player1, id);
+                        boardPieces[i][j].addMove(currPos);
+                        gameStats.addPieceStats(player1, boardPieces[i][j]);
+                        positions[i][j] = currPos;
+                        positions[i][j].addVisit(boardPieces[i][j]);
                         countDefender++;
                         break;
                 }
             }
         }
-        gameState.addState(boardPieces, pieceStats, positionStats);
     }
 
     @Override
     public boolean move(Position a, Position b) {
+        a = positions[a.getRow()][a.getCol()];
+        b = positions[b.getRow()][b.getCol()];
         // Check all "bad" options
         if (!arePiecesAvailable(a, b) || isMoveDiagonal(a, b) || !isPathClear(a ,b) || pawnToCorner(a, b))
             return false;
         // else
-        // king
-//        getPieceAtPosition(a).addMove(b);
-        if (getPieceAtPosition(a).getClass().equals(King.class)){
+        // add new move to moves stack
+        this.moves.push(new Move(a, b));
+        // king or "pawn to corner" - move
+        if (getPieceAtPosition(a).getClass().equals(King.class) || !b.isCorner()){
             movePiece(a, b);
-            isKingCornered(getPieceAtPosition(b));
-        }
-        else if (!b.isCorner()) { // pawn
-            movePiece(a, b);
-            eatPiece(getPieceAtPosition(b), b);
+            // add visit to position b
+            this.positions[b.getRow()][b.getCol()].addVisit(this.boardPieces[b.getRow()][b.getCol()]);
+            // add move to piece
+            this.boardPieces[b.getRow()][b.getCol()].addMove(b);
+            // switch turns
+            this.isSecondPlayerTurn = !this.isSecondPlayerTurn;
+            if (getPieceAtPosition(b).getClass().equals(King.class))
+                isKingCornered((King)getPieceAtPosition(b));
+            else
+                eatPiece(getPieceAtPosition(b), b);
         }
         return true;
     }
 
+    // returns true if piece at a is a pawn and b is a corner
     private boolean pawnToCorner(Position a, Position b) {
         return b.isCorner() && getPieceAtPosition(a).getClass().equals(Pawn.class);
     }
 
+    // returns true if the move is diagonal
     private boolean isMoveDiagonal(Position a, Position b) {
         return a.getCol() != b.getCol() && a.getRow() != b.getRow();
     }
 
+    /* return true if the path is clear - no other piece between a and b
+    assuming a and b are available and not diagonal */
     private boolean isPathClear(Position a, Position b) {
-        // assuming a and b are available and not diagonal
         // move on Y
         if (a.getRow() != b.getRow()) {
             int direction = a.getRow() > b.getRow() ? -1 : 1;
@@ -160,26 +164,15 @@ public class GameLogic implements PlayableLogic{
         return true;
     }
 
+    // moves the pieces with no conditions and nothing else done, just a pure move
     private void movePiece (Position a, Position b){
         // set b
         this.boardPieces[b.getRow()][b.getCol()] = this.boardPieces[a.getRow()][a.getCol()];
-        this.pieceStats[b.getRow()][b.getCol()] = this.pieceStats[a.getRow()][a.getCol()];
         // set a
         this.boardPieces[a.getRow()][a.getCol()] = null;
-        this.pieceStats[a.getRow()][a.getCol()] = null;
-
-        // add visit to position b
-        this.positionStats[b.getRow()][b.getCol()].addVisit(this.boardPieces[b.getRow()][b.getCol()]);
-
-        // add move to piece stats
-        this.pieceStats[b.getRow()][b.getCol()].addMove(b);
-
-        gameState.addState(boardPieces, pieceStats, positionStats);
-
-        // switch turns
-        this.isSecondPlayerTurn = !this.isSecondPlayerTurn;
     }
 
+    // check all the enemies around _piece at newPos and eats if needed
     private void eatPiece(Piece _piece, Position newPos) {
         Pawn piece = ((Pawn) _piece);
         int i = newPos.getRow(), j = newPos.getCol();
@@ -197,13 +190,15 @@ public class GameLogic implements PlayableLogic{
         // check for enemies around and act accordingly
         // LEFT
         if (left != null && (j - 1) >= 0 && left.getOwner() != piece.getOwner()){
-            if (!left.getType().equals("♔")) {
+            if (left.getClass().equals(Pawn.class)) {
                 // he is cornered to the left, so eat him
                 if (j - 2 == -1 || leftPos.getLeft().isCorner()) {
-                    this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
+                    ((Pawn) this.boardPieces[newPos.getRow()][newPos.getCol()]).addKill();
+                    moves.peek().addKill(piece, this.boardPieces[i][j-1]);
                     this.boardPieces[i][j-1] = null;
                 } else if (this.boardPieces[i][j-2] != null && !this.boardPieces[i][j-2].getClass().equals(King.class) && this.boardPieces[i][j-2].getOwner() == piece.getOwner()) {
-                    this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
+                    ((Pawn) this.boardPieces[newPos.getRow()][newPos.getCol()]).addKill();
+                    moves.peek().addKill(piece, this.boardPieces[i][j-1]);
                     this.boardPieces[i][j-1] = null;
                 }
             }
@@ -215,13 +210,15 @@ public class GameLogic implements PlayableLogic{
 
         // RIGHT
         if (right != null && (j + 1) <= 10 && right.getOwner() != piece.getOwner()){
-            if (!right.getType().equals("♔")) {
+            if (right.getClass().equals(Pawn.class)) {
                 // he is cornered to the right, so eat him
                 if (j + 2 == BOARD_SIZE || rightPos.getRight().isCorner()) {
-                    this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
+                    ((Pawn) this.boardPieces[newPos.getRow()][newPos.getCol()]).addKill();
+                    moves.peek().addKill(piece, this.boardPieces[i][j+1]);
                     this.boardPieces[i][j+1] = null;
                 } else if (this.boardPieces[i][j+2] != null && !this.boardPieces[i][j+2].getClass().equals(King.class) && this.boardPieces[i][j+2].getOwner() == piece.getOwner()) {
-                    this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
+                    ((Pawn) this.boardPieces[newPos.getRow()][newPos.getCol()]).addKill();
+                    moves.peek().addKill(piece, this.boardPieces[i][j+1]);
                     this.boardPieces[i][j+1] = null;
                 }
             }
@@ -233,13 +230,15 @@ public class GameLogic implements PlayableLogic{
 
         // UP
         if (up != null && (i + 1) <= 10 && up.getOwner() != piece.getOwner()){
-            if (!up.getType().equals("♔")) {
+            if (up.getClass().equals(Pawn.class)) {
                 // he is cornered above, so eat him
                 if (i + 2 == BOARD_SIZE || upPos.getUp().isCorner()) {
-                    this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
+                    ((Pawn) this.boardPieces[newPos.getRow()][newPos.getCol()]).addKill();
+                    moves.peek().addKill(piece, this.boardPieces[i+1][j]);
                     this.boardPieces[i+1][j] = null;
                 } else if (this.boardPieces[i+2][j] != null && !this.boardPieces[i+2][j].getClass().equals(King.class) && this.boardPieces[i+2][j].getOwner() == piece.getOwner()) {
-                    this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
+                    ((Pawn) this.boardPieces[newPos.getRow()][newPos.getCol()]).addKill();
+                    moves.peek().addKill(piece, this.boardPieces[i+1][j]);
                     this.boardPieces[i+1][j] = null;
                 }
             }
@@ -251,13 +250,15 @@ public class GameLogic implements PlayableLogic{
 
         // DOWN
         if (down != null && (i - 1) >= 0 && down.getOwner() != piece.getOwner()){
-            if (!down.getType().equals("♔")) {
+            if (down.getClass().equals(Pawn.class)) {
                 // he is cornered below, so eat him
                 if (i - 2 == -1  || downPos.getDown().isCorner()) {
-                    this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
+                    ((Pawn) this.boardPieces[newPos.getRow()][newPos.getCol()]).addKill();
+                    moves.peek().addKill(piece, this.boardPieces[i-1][j]);
                     this.boardPieces[i-1][j] = null;
                 } else if (this.boardPieces[i-2][j] != null && !this.boardPieces[i-2][j].getClass().equals(King.class) && this.boardPieces[i-2][j].getOwner() == piece.getOwner()) {
-                    this.pieceStats[newPos.getRow()][newPos.getCol()].addKill();
+                    ((Pawn) this.boardPieces[newPos.getRow()][newPos.getCol()]).addKill();
+                    moves.peek().addKill(piece, this.boardPieces[i-1][j]);
                     this.boardPieces[i-1][j] = null;
                 }
             }
@@ -268,6 +269,7 @@ public class GameLogic implements PlayableLogic{
         }
     }
 
+    // returns true if king at pos is surrounded, if true, starts gameFinished() to end game with player2 as winner
     public boolean isKingDead(Piece king, Position pos){
         if (getPieceAtPosition(pos.getLeft()) != null &&
                 getPieceAtPosition(pos.getRight()) != null &&
@@ -285,11 +287,9 @@ public class GameLogic implements PlayableLogic{
         return false;
     }
 
-    public boolean isKingCornered(Piece king){
-        if ((getPieceAtPosition(CORNER1) == king) ||
-                (getPieceAtPosition(CORNER2) == king) ||
-                (getPieceAtPosition(CORNER3) == king) ||
-                (getPieceAtPosition(CORNER4) == king) ) {
+    // returns true if the king is on a corner and start gameFinished() with player1 as winner
+    public boolean isKingCornered(King king){
+        if (king.getPos().isCorner()){
             gameFinished(player1);
             return true;
         }
@@ -330,11 +330,12 @@ public class GameLogic implements PlayableLogic{
         this.player2 = new ConcretePlayer(false);
     }
 
+    // finishes the game, updates wins, prints stats and resets board
     private void gameFinished(ConcretePlayer winner){
         this.isGameFinished = true;
         winner.win();
         gameStats.setWinner(winner);
-        gameStats.setPositionsList(positionStats);
+        gameStats.setPositionsList(positions);
         printStats();
         resetBoard();
     }
@@ -354,19 +355,29 @@ public class GameLogic implements PlayableLogic{
         this.isGameFinished = false;
         this.isSecondPlayerTurn = true;     // 2nd player starts
         this.boardPieces = new ConcretePiece[BOARD_SIZE][BOARD_SIZE];
-        this.gameState = new GameState();
+        this.positions = new Position[BOARD_SIZE][BOARD_SIZE];
+        this.moves = new Stack<>();
         initBoardPieces();
     }
 
     @Override
     public void undoLastMove() {
-        if (gameState.getNumberOfStates() > 1){
-            gameState.removeState();
-            this.boardPieces = gameState.getLast_boardPieces();
-            this.positionStats = gameState.getLast_positionStats();
-            this.pieceStats = gameState.getLast_pieceStats();
-            // give turn back
-            isSecondPlayerTurn = !isSecondPlayerTurn;
+        // each time it pops a move from the stack of moves and undos it
+        if (!moves.empty()){
+            Move lastMove = moves.pop();
+            positions[lastMove.getTo().getRow()][lastMove.getTo().getCol()].getLastVisit().removeMove();
+            positions[lastMove.getTo().getRow()][lastMove.getTo().getCol()].removeVisit();
+            movePiece(lastMove.getTo(), lastMove.getFrom());
+            ArrayList<ConcretePiece> killed = lastMove.getKilledList();
+            Pawn killer = lastMove.getKiller();
+            if (!killed.isEmpty()) {
+                for (ConcretePiece piece : killed){
+                    killer.removeKill();
+                    Position killedPos = piece.getPos();
+                    this.boardPieces[killedPos.getRow()][killedPos.getCol()] = piece;
+                }
+            }
+            this.isSecondPlayerTurn = !this.isSecondPlayerTurn;
         }
     }
 
